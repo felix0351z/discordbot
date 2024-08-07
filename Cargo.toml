@@ -11,14 +11,14 @@ env_logger = "0.11.3"
 log = "0.4.22"
 thiserror = "1.0.61"
 futures = "0.3.30"
+reqwest = "0.11.27"
+
 
 serenity = { version = "0.12", features = ["framework"] }
-lavalink-rs = { version = "0.13.0", features = ["songbird", "serenity", "native-tls", "macros"], default-features = false}
 tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread", "rt"] }
 poise = { version = "0.6.1", features = ["cache", "chrono", "handle_panics"], default-features = false }
-songbird = { version = "0.4.2", features = ["gateway", "serenity", "native"], default-features = false }
-chrono = "0.4.38"
-lazy_static = "1.5.0"
+songbird = { version = "0.4.3", features = ["builtin-queue"], default-features = true }
+symphonia = "0.5.4"
 dashmap = "6.0.1"
 
 

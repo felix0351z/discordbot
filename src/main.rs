@@ -3,13 +3,6 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use dashmap::DashMap;
 use futures::stream::IntoAsyncRead;
-use lavalink_rs::client::LavalinkClient;
-use lavalink_rs::hook;
-use lavalink_rs::model::{BoxFuture, UserId};
-use lavalink_rs::model::events::{Events, Ready};
-use lavalink_rs::node::NodeBuilder;
-use lavalink_rs::prelude::NodeDistributionStrategy;
-use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
 use poise::{Framework, FrameworkError, FrameworkOptions, Prefix, PrefixFrameworkOptions};
 use serenity::all::{EventHandler, GatewayIntents, GuildId, Shard, ShardManager};
@@ -20,6 +13,8 @@ use tokio::task::JoinHandle;
 //TODO: Error handling
 //TODO: Comments
 //TODO: Command group + help
+
+use reqwest::Client as HttpClient;
 
 
 mod general;
@@ -34,7 +29,7 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 
 // Custom user data passed to all command functions
 pub struct Data {
-    lavalink: Arc<LavalinkClient>,
+    http_client: HttpClient
 }
 
 pub struct SerenityData {
@@ -102,31 +97,8 @@ async fn main() {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 // Load lavalink
 
-                let events = Events {
-                    ready: Some(music::ready_event),
-                    //track_end: Some(music::track_end),
-                    ..Default::default()
-                };
-
-                // Create the connection to the node
-                let node = NodeBuilder {
-                    hostname: "192.168.178.172:2333".to_string(),
-                    is_ssl: false,
-                    events: Events::default(),
-                    password: "youshallnotpass".to_string(),
-                    user_id: ctx.cache.current_user().id.into(),
-                    session_id: None,
-                };
-
-                // Create the lavalink client
-                let client = LavalinkClient::new(
-                    events,
-                    vec![node],
-                    NodeDistributionStrategy::round_robin()
-                ).await;
-
                 Ok(Data {
-                    lavalink: Arc::new(client)
+                    http_client: HttpClient::new()
                 })
             })
         })

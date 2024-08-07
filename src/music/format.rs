@@ -1,44 +1,40 @@
-use std::collections::VecDeque;
-use lavalink_rs::model::track::{PlaylistInfo, TrackData};
-use lavalink_rs::prelude::TrackInQueue;
+
 use poise::CreateReply;
 use serenity::all::{Color, CreateEmbed, CreateEmbedAuthor};
+use songbird::input::AuxMetadata;
 
 pub trait EmbedFormat {
     fn as_embed_message(&self, prefix: &str) -> CreateReply;
 }
 
-impl EmbedFormat for TrackData {
+impl EmbedFormat for AuxMetadata {
     fn as_embed_message(&self, prefix: &str) -> CreateReply {
-        let minutes = (self.info.length/1000) / 60;
-        let seconds = (self.info.length/1000) % 60;
+        let author = self.artist.as_deref().unwrap_or_default();
+        let title = self.title.as_deref().unwrap_or_default();
 
         let mut creator = CreateEmbed::new()
-            .author(CreateEmbedAuthor::new(&self.info.author))
-            .title(format!("{}:\n{}", prefix, self.info.title))
-            .color(Color::RED)
-            .description(format!("{}:{:02}", minutes, seconds));
+            .author(CreateEmbedAuthor::new(author))
+            .title(format!("{}:\n{:?}", prefix, title))
+            .color(Color::RED);
 
-        match &self.info.uri {
-            None => {}
-            Some(it) => {
-                creator = creator.url(it).image(it);
-            }
+
+        if let Some(time) = self.duration {
+            let minutes = (time.as_secs()) / 60;
+            let seconds = (time.as_secs()) % 60;
+            creator = creator.description(format!("{}:{:02}", minutes, seconds));
         }
-
-        match &self.info.artwork_url {
-            None => {}
-            Some(it) => {
-                creator = creator.image(it);
-            }
+        if let Some(uri) = self.source_url.as_deref() {
+            creator = creator.url(uri);
         }
-
+        if let Some(thumbnail) = self.thumbnail.as_deref() {
+            creator = creator.image(thumbnail);
+        }
 
         return CreateReply::default().embed(creator)
     }
 }
 
-impl EmbedFormat for PlaylistInfo {
+/*impl EmbedFormat for PlaylistInfo {
     fn as_embed_message(&self, prefix: &str) -> CreateReply {
         let creator = CreateEmbed::new()
             .title(format!("{}:\nPlaylist - {}", prefix,  self.name))
@@ -46,9 +42,9 @@ impl EmbedFormat for PlaylistInfo {
 
         return CreateReply::default().embed(creator)
     }
-}
+}*/
 
-impl EmbedFormat for VecDeque<TrackInQueue> {
+/*impl EmbedFormat for VecDeque<TrackInQueue> {
     fn as_embed_message(&self, prefix: &str) -> CreateReply {
         // If queue is empty return
         if self.is_empty() {
@@ -70,4 +66,4 @@ impl EmbedFormat for VecDeque<TrackInQueue> {
         return CreateReply::default().embed(creator)
     }
 
-}
+}*/
