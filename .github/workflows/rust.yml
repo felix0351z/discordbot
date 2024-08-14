@@ -2,9 +2,9 @@ name: Rust
 
 on:
   push:
-    branches: [ "songbird-migration" ]
+    branches: [ "master" ]
   pull_request:
-    branches: [ "songbird-migration" ]
+    branches: [ "master" ]
 
 env:
   CARGO_TERM_COLOR: always
