@@ -12,18 +12,10 @@ use crate::music::format::EmbedFormat;
 async fn join(
     ctx: &Context<'_>,
     guild_id: GuildId,
-) -> Result<(PlayerContext), Error>{
+) -> Result<PlayerContext, Error>{
     let lavalink = ctx.data().lavalink.clone();
     let songbird = songbird::get(ctx.serenity_context()).await.unwrap().clone();
-
-    // Check if a player exists in this guild at that moment
-    let player_context = lavalink.get_player_context(guild_id);
-
-    if player_context.is_some() {
-        return Ok(player_context.unwrap())
-    }
-
-    // If not, join a channel and create the context
+    
     // If the user isn't in a voice channel, return error
     let guild = ctx.guild().unwrap().deref().clone();
     let channel_id = guild
@@ -32,8 +24,25 @@ async fn join(
         .and_then(|voice_state| voice_state.channel_id)
         .ok_or::<MusicCommandError>(NoUserInVoiceChannel.into())
         ?;
-    let (connection_info, call) = songbird.join_gateway(guild_id, channel_id).await?;
 
+    // Check if there is already an active listening session
+    if let Some(call) = songbird.get(guild_id) {
+        let handler = call.lock().await;
+
+        // If yes and the user remains in the same channel, the player can be returned as it is
+        if handler.current_channel().is_some_and(|it| it.0.get() == channel_id.get()) {
+            if let Some(player) = lavalink.get_player_context(guild_id) {
+                return Ok(player)
+            }
+
+        } else {
+            // If not, the old player must be deleted and a new player has to be created in the new channel
+            lavalink.delete_player(guild_id).await?;
+        }
+    }
+
+    // If a new player must be created, join/switch the channel and create the context
+    let (connection_info, _call) = songbird.join_gateway(guild_id, channel_id).await?;
 
     // If the bot joins the channel successfully, create the player context
     let created_player = lavalink.create_player_context_with_data::<Mutex<bool>>(
@@ -42,12 +51,11 @@ async fn join(
         // Give him an additional boolean, to see if the player is stopped
         Arc::from(Mutex::new(false))
     ).await?;
-
-    // If a new player context was created => return true
     Ok(created_player)
 }
 
-#[poise::command(prefix_command, guild_only)]
+/// Play music from YouTube via url or search request
+#[poise::command(prefix_command, slash_command, guild_only, category = "Music")]
 pub async fn play(
     ctx: Context<'_>,
     #[description = "Search or URL"]
@@ -57,30 +65,27 @@ pub async fn play(
     let guild_id = ctx.guild_id().unwrap();
     let lavalink = ctx.data().lavalink.clone();
 
-    // If no input provided, return error
+    // If no search query provided, return
     let Some(search) = search else {
         return Err(NoQueryProvided.into());
     };
 
-    // Search for the query
+    // Search for the query if no link was provided
     let query = match search.starts_with("http") {
         true => search,
-        false => {
-            SearchEngines::YouTube.to_query(search.as_str())?
-        }
+        false => { SearchEngines::YouTube.to_query(search.as_str())? }
     };
 
     // Load tracks
     let loaded_track = lavalink.load_tracks(guild_id, query.as_str()).await?;
     let mut playlist_info = None;
-
-    let mut tracks: Vec<TrackInQueue> = match loaded_track.data {
+    let tracks: Vec<TrackInQueue> = match loaded_track.data {
         Some(TrackLoadData::Track(v)) => {
-            // take the video
+            // If a video was given, wrap the track around a vec
             vec![v.into()]
         }
         Some(TrackLoadData::Playlist(v)) => {
-            // Take the complete playlist
+            // If a playlist was given, map the playlist
             playlist_info = Some(v.info);
             v.tracks
                 .iter()
@@ -88,7 +93,7 @@ pub async fn play(
                 .collect()
         }
         Some(TrackLoadData::Search(v)) => {
-            // take the first search result
+            // If a search was given, only take the first result
             vec![v[0].clone().into()]
         }
         _ => {
@@ -96,25 +101,22 @@ pub async fn play(
         }
     };
 
-    // Create the player
+    // Create the voice session
     let player = join(&ctx, guild_id).await?;
 
-    // Reply track info:
+    // Send information what data will be played
     let is_playing = player.get_player().await?.track.is_some();
     let text = if is_playing { "Zur Warteschlange hinzugefügt" } else { "Spiele jetzt" };
 
-    match playlist_info {
-        None => {
-            let track = &tracks[0].track;
-            ctx.send(track.as_embed_message(text)).await?;
-        }
-        Some(info) => {
-            ctx.send(info.as_embed_message(text)).await?;
-        }
+    if let Some(info) = playlist_info {
+        ctx.send(info.as_embed_message(text)).await?;
+    } else {
+        let track = &tracks[0].track;
+        ctx.send(track.as_embed_message(text)).await?;
     }
 
     // Add the track/playlist to the queue
-    // Note: The lavalink-rs will start the playback automatically
+    // Note: The lavalink-rs will start the playback automatically, if it wasn't manually stopped
     let queue = player.get_queue();
     queue.append(tracks.into())?;
 

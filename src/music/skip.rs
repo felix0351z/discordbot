@@ -1,23 +1,18 @@
-use std::sync::Mutex;
-
 use crate::{Context, Error};
-use crate::music::MusicCommandError::{NoTrackInQueue, NoUserInVoiceChannel};
+use crate::music::MusicCommandError::NoTrackIsPlaying;
 use crate::music::PlayerStoppedExtension;
 
-#[poise::command(prefix_command, guild_only)]
+/// Skip the current track
+#[poise::command(prefix_command, slash_command, guild_only, category = "Music")]
 pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
-
     let guild_id = ctx.guild_id().unwrap();
     let lavalink = ctx.data().lavalink.clone();
 
     let Some(player) = lavalink.get_player_context(guild_id) else {
-        return Err(NoUserInVoiceChannel.into());
+        return Err(NoTrackIsPlaying.into());
     };
-
-
-    let is_playing = player.get_player().await?.track.is_some();
-    if !is_playing {
-        return Err(NoTrackInQueue.into());
+    if player.get_player().await?.track.is_none() {
+        return Err(NoTrackIsPlaying.into());
     }
 
     // if there is no song left in queue, the player will stop

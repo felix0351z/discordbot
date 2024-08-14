@@ -1,53 +1,44 @@
 use std::default::Default;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use dashmap::DashMap;
-use futures::stream::IntoAsyncRead;
+use std::sync::Arc;
+
 use lavalink_rs::client::LavalinkClient;
-use lavalink_rs::hook;
-use lavalink_rs::model::{BoxFuture, UserId};
-use lavalink_rs::model::events::{Events, Ready};
+use lavalink_rs::model::events::Events;
 use lavalink_rs::node::NodeBuilder;
 use lavalink_rs::prelude::NodeDistributionStrategy;
-use lazy_static::lazy_static;
-use log::{debug, error, info, warn};
-use poise::{Framework, FrameworkError, FrameworkOptions, Prefix, PrefixFrameworkOptions};
-use serenity::all::{EventHandler, GatewayIntents, GuildId, Shard, ShardManager};
+use poise::{Framework, FrameworkError, FrameworkOptions, PrefixFrameworkOptions};
+use serenity::all::GatewayIntents;
 use serenity::Client;
-use serenity::prelude::TypeMapKey;
 use songbird::SerenityInit;
-use tokio::task::JoinHandle;
-//TODO: Error handling
-//TODO: Comments
-//TODO: Command group + help
 
+// General command
+mod commands;
 
-mod general;
+// Event handler
 mod events;
+
+// Error handler
+mod error;
+
+// All music related code
 mod music;
 
-const DISCORD_TOKEN: &str = "NDEyOTcyMzAxNDg3NzAyMDE2.GPFh0K.CFHb0w9ZKGk0EsiEMd52xM5zbU1B39hfQgMTC0";
-
-
-type Error = Box<dyn std::error::Error + Send + Sync>;
-type Context<'a> = poise::Context<'a, Data, Error>;
+// Config manager
+mod config;
 
 // Custom user data passed to all command functions
 pub struct Data {
     lavalink: Arc<LavalinkClient>,
 }
 
-pub struct SerenityData {
-
-}
+type Error = Box<dyn std::error::Error + Send + Sync>;
+type Context<'a> = poise::Context<'a, Data, Error>;
 
 
 #[tokio::main]
 async fn main() {
-    // Start the logger
+    // Start the logger and load  settings
     env_logger::init();
-
-
+    let settings = config::load_settings();
 
     // Provide intents, which are needed for this bot
     let intents =
@@ -56,74 +47,45 @@ async fn main() {
     //Initialise the poise framework for command management
     let options = FrameworkOptions {
         commands: vec![
-            general::hello(),
-            general::ping(),
-            general::help(),
-            music::play::play(),
-            music::skip::skip(),
-            music::stop::stop(),
-            music::info::info(),
-            music::queue::queue(),
-            music::queue::clear(),
-            music::stop::leave(),
-        ]
-        ,
+            commands::hello(), commands::ping(), commands::help(),
+            music::play::play(), music::skip::skip(), music::stop::stop(),
+            music::info::info(), music::queue::queue(), music::clear::clear(),
+            music::leave::leave(), music::lavalink::lavalink(),
+        ],
         prefix_options: PrefixFrameworkOptions {
-            prefix: Some("!".into()),
-            additional_prefixes: vec![Prefix::Literal("Hey Bigmac,")],
+            prefix: Some(settings.application.prefix),
+            mention_as_prefix: true,
             ..Default::default()
+        }, //Global error handler for all errors which occur
+        on_error: |framework_err: FrameworkError<'_, Data, Error>| {
+            Box::pin(error::error_handler(framework_err))
         },
-        //Global error handler for all errors which occur
-        on_error: |error: FrameworkError<'_, Data, Error>| Box::pin(async move {
-
-            error!("{}" ,error)
-
-
-        }),
-        // Runs before every command
-        pre_command: |ctx| Box::pin(async move{
-
-        }),
-        //Runs after every command
-        post_command: |ctx| Box::pin(async move{
-
-        }),
-        event_handler: |ctx, event, framework, data| {
-            Box::pin(events::event_handler(ctx, event, framework, data))
+        event_handler: |ctx, event, framework, _data| {
+            Box::pin(events::event_handler(ctx, event, framework))
         },
         ..Default::default()
     };
 
     let poise_framework = Framework::builder()
-        .setup(move |ctx, ready, framework| {
+        .setup(move |ctx, _ready, framework| {
             Box::pin(async move {
-                info!("Logged in as {}", ready.user.name);
                 // Register the commands of the bot at the discord server
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                // Load lavalink
 
+                // Load lavalink
                 let events = Events {
                     ready: Some(music::ready_event),
-                    //track_end: Some(music::track_end),
                     ..Default::default()
                 };
-
-                // Create the connection to the node
                 let node = NodeBuilder {
-                    hostname: "192.168.178.172:2333".to_string(),
-                    is_ssl: false,
-                    events: Events::default(),
-                    password: "youshallnotpass".to_string(),
-                    user_id: ctx.cache.current_user().id.into(),
-                    session_id: None,
+                        hostname: format!("{}:{}", settings.lavalink.hostname, settings.lavalink.port).to_string(),
+                        password: settings.lavalink.password,
+                        is_ssl: settings.lavalink.is_ssl,
+                        events: Events::default(),
+                        user_id: ctx.cache.current_user().id.into(),
+                        session_id: None
                 };
-
-                // Create the lavalink client
-                let client = LavalinkClient::new(
-                    events,
-                    vec![node],
-                    NodeDistributionStrategy::round_robin()
-                ).await;
+                let client = LavalinkClient::new(events, vec![node], NodeDistributionStrategy::round_robin()).await;
 
                 Ok(Data {
                     lavalink: Arc::new(client)
@@ -136,12 +98,14 @@ async fn main() {
 
 
 
-    // Create the client
-    let mut client = Client::builder(DISCORD_TOKEN, intents)
+    // Create the serenity client and start the server
+    let mut client = Client::builder(settings.application.discord_token, intents)
         .register_songbird()
         .framework(poise_framework)
         .await
-        .expect("Error while creating client");
+        .unwrap_or_else(|err| {
+            panic!("Error occurred on client creation: {}", err)
+        });
 
     // Start the client
     if let Err(error) = client.start().await {

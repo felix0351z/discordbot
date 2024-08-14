@@ -3,7 +3,9 @@ use lavalink_rs::model::track::{PlaylistInfo, TrackData};
 use lavalink_rs::prelude::TrackInQueue;
 use poise::CreateReply;
 use serenity::all::{Color, CreateEmbed, CreateEmbedAuthor};
+use crate::music::MusicCommandError;
 
+/// Trait to extend objects with the ability to covert them to an embed message
 pub trait EmbedFormat {
     fn as_embed_message(&self, prefix: &str) -> CreateReply;
 }
@@ -19,18 +21,11 @@ impl EmbedFormat for TrackData {
             .color(Color::RED)
             .description(format!("{}:{:02}", minutes, seconds));
 
-        match &self.info.uri {
-            None => {}
-            Some(it) => {
-                creator = creator.url(it).image(it);
-            }
+        if let Some(uri) = &self.info.uri {
+            creator = creator.url(uri).image(uri);
         }
-
-        match &self.info.artwork_url {
-            None => {}
-            Some(it) => {
-                creator = creator.image(it);
-            }
+        if let Some(thumbnail) = &self.info.artwork_url {
+            creator = creator.image(thumbnail);
         }
 
 
@@ -49,7 +44,7 @@ impl EmbedFormat for PlaylistInfo {
 }
 
 impl EmbedFormat for VecDeque<TrackInQueue> {
-    fn as_embed_message(&self, prefix: &str) -> CreateReply {
+    fn as_embed_message(&self, _prefix: &str) -> CreateReply {
         // If queue is empty return
         if self.is_empty() {
             return CreateReply::default().content("Die Warteschlange ist leer!");
@@ -69,5 +64,13 @@ impl EmbedFormat for VecDeque<TrackInQueue> {
 
         return CreateReply::default().embed(creator)
     }
+}
 
+impl EmbedFormat for MusicCommandError {
+    fn as_embed_message(&self, _prefix: &str) -> CreateReply {
+        let creator = CreateEmbed::new()
+            .description(self.to_string())
+            .color(Color::RED);
+        return CreateReply::default().embed(creator);
+    }
 }

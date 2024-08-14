@@ -1,7 +1,8 @@
 use poise::builtins::HelpConfiguration;
+
 use crate::{Context, Error};
 
-/// Ping Command, say hello to your favourite bot
+/// Say hello to me
 #[poise::command(prefix_command)]
 pub async fn hello(ctx: Context<'_>) -> Result<(), Error> {
 
@@ -26,7 +27,7 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
 
     let config = HelpConfiguration {
-        extra_text_at_bottom: "Type !help command for more info on a command.",
+        extra_text_at_bottom: "",
         ephemeral: true,
         show_context_menu_commands: false,
         show_subcommands: false,
