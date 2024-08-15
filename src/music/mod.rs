@@ -1,9 +1,13 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use lavalink_rs::client::LavalinkClient;
 use lavalink_rs::hook;
 use lavalink_rs::player_context::PlayerContext;
 use log::{error, info};
+use serenity::all::GuildId;
+use songbird::Songbird;
 use thiserror::Error;
+use tokio::task::JoinHandle;
 use crate::Error;
 
 // Commands
@@ -66,6 +70,51 @@ impl PlayerStoppedExtension for PlayerContext {
 
         Ok(())
     }
+}
+
+
+/// Asynchronously checks if a player is not playing anymore. If the case is true, the player will be closed due to inactivity
+pub fn inactivity_handler(
+    delay: Duration,
+    lavalink: Arc<LavalinkClient>,
+    songbird: Arc<Songbird>
+) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(delay).await;
+
+            let guild_ids = lavalink.players.iter()
+                .filter_map(|i|i.0.load().clone().map(|x|GuildId::new(x.guild_id.0)))
+                .collect::<Vec<_>>();
+
+
+            for guild_id in guild_ids.iter() {
+                // If the player is active skip the current player
+                if let Some(player) = lavalink.get_player_context(*guild_id) {
+                    if player.get_player().await.is_ok_and(|it|it.track.is_some()) {
+                        info!("Skipped player close for player at guild {} because he is playing", guild_id.get());
+                        continue;
+                    }
+                }
+
+                if lavalink.delete_player(*guild_id).await.is_ok() {
+                    if songbird.get(*guild_id).is_some() {
+                        let leave_request = songbird.remove(*guild_id).await;
+                        match leave_request {
+                            Ok(_) => {
+                                info!("Leaved voice channel at guild {} because of inactivity", guild_id.get());
+                            }
+                            Err(err) => {
+                                error!("Failed to leave voice channel at guild {}: {}", guild_id.get(), err)
+                            }
+                        }
+                    }
+                } else {
+                    error!("Failed to leave voice channel at guild {}: Can't get the player context", guild_id.get())
+                }
+            }
+        }
+    })
 }
 
 
