@@ -3,7 +3,6 @@ use lavalink_rs::model::track::{PlaylistInfo, TrackData};
 use lavalink_rs::prelude::TrackInQueue;
 use poise::CreateReply;
 use serenity::all::{Color, CreateEmbed, CreateEmbedAuthor};
-use crate::music::MusicCommandError;
 
 /// Trait to extend objects with the ability to covert them to an embed message
 pub trait EmbedFormat {
@@ -66,11 +65,14 @@ impl EmbedFormat for VecDeque<TrackInQueue> {
     }
 }
 
-impl EmbedFormat for MusicCommandError {
-    fn as_embed_message(&self, _prefix: &str) -> CreateReply {
+pub trait ErrorEmbedFormat {
+    fn error_to_embed(&self) -> CreateReply;
+}
+impl<T: ?Sized + std::error::Error + ToString> ErrorEmbedFormat for T {
+    fn error_to_embed(&self) -> CreateReply {
         let creator = CreateEmbed::new()
             .description(self.to_string())
             .color(Color::RED);
-        return CreateReply::default().embed(creator);
+        return CreateReply::default().embed(creator)
     }
 }
