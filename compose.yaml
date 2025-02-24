@@ -1,0 +1,27 @@
+services:
+  bot:
+    container_name: discord-bot
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - lavalink-internal
+    depends_on:
+      - lavalink
+  lavalink:
+    image: ghcr.io/lavalink-devs/lavalink:4
+    container_name: discord-lavalink
+    restart: unless-stopped
+    environment:
+      - _JAVA_OPTIONS=-Xmx4G
+      - SERVER_PORT=2333
+      - LAVALINK_SERVER_PASSWORD=youshallnotpass
+    volumes:
+      - ./application.yml:/opt/Lavalink/application.yml
+      # persist plugins between restarts, make sure to set the correct permissions (user: 322, group: 322)
+      - ./plugins/:/opt/Lavalink/plugins/
+    networks:
+      - lavalink-internal
+
+networks:
+  lavalink-internal:
