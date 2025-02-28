@@ -14,9 +14,6 @@ use crate::Error;
 pub mod play; pub mod skip; pub mod stop; pub mod info; pub mod queue; pub mod clear;
 pub mod leave; pub mod lavalink;
 
-// Formatting extensions
-pub mod format;
-
 #[hook]
 pub async fn ready_event(client: LavalinkClient, session_id: String, _event: &lavalink_rs::model::events::Ready) {
     // Remove all existent players and give status info

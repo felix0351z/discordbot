@@ -7,7 +7,7 @@ use serenity::all::GuildId;
 use crate::{Context, Error};
 use crate::music::{MusicCommandError, PlayerStoppedExtension};
 use crate::music::MusicCommandError::{FailedLoadingTrack, NoQueryProvided, NoUserInVoiceChannel};
-use crate::music::format::EmbedFormat;
+use crate::format::EmbedFormat;
 
 async fn join(
     ctx: &Context<'_>,

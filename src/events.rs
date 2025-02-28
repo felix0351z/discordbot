@@ -1,5 +1,4 @@
 use std::time::Duration;
-use log::info;
 use serenity::all::{ActivityData, Context, FullEvent, OnlineStatus};
 use crate::{Data, Error};
 use crate::music::inactivity_handler;

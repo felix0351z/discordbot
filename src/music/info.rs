@@ -1,5 +1,5 @@
 use crate::{Context, Error};
-use crate::music::format::EmbedFormat;
+use crate::format::EmbedFormat;
 use crate::music::MusicCommandError::NoTrackIsPlaying;
 
 /// Get information about the current track

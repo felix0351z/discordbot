@@ -11,7 +11,6 @@ use poise::{Framework, FrameworkError, FrameworkOptions, PrefixFrameworkOptions}
 use serenity::all::GatewayIntents;
 use serenity::Client;
 use songbird::SerenityInit;
-use crate::music::info::info;
 
 // General command
 mod commands;
@@ -27,6 +26,8 @@ mod music;
 
 // Config manager
 mod config;
+// Formatting extensions
+pub mod format;
 
 // Custom user data passed to all command functions
 pub struct Data {

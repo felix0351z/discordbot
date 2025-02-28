@@ -1,10 +1,14 @@
-use log::error;
-use poise::FrameworkError;
+
+use poise::{Context, CreateReply, FrameworkError};
 use crate::{Data, Error};
-use crate::music::format::ErrorEmbedFormat;
 use lavalink_rs::error::LavalinkError;
+use serenity::all::{Color, CreateEmbed};
+
+type PoiseContext<'a> = Option<Context<'a, Data, Error>>;
 
 pub async fn error_handler(framework_err: FrameworkError<'_, Data, Error>) {
+    let ctx = framework_err.ctx();
+
     match framework_err {
         FrameworkError::Setup { .. } => {}
         FrameworkError::Command { ref error, .. } => {
@@ -12,23 +16,38 @@ pub async fn error_handler(framework_err: FrameworkError<'_, Data, Error>) {
             if let Some(lavalink_error) = error.downcast_ref::<LavalinkError>() {
                 match lavalink_error {
                     LavalinkError::HyperClientError(..) => {
-                        error!("No connection to Lavalink server!");
+                        log_error(ctx, "No connection to lavalink server!", lavalink_error).await;
                     }
-                    &_ => { error!("Lavalink: {}", error); }
+                    &_ => { log::error!("Lavalink: {}", error); }
                 }
             } else {
-                error!("Command execution: {}", error);
+                log::error!("Command execution: {}", error);
             }
         }
         _ => {}
     }
 }
 
-fn log_error<T: error::Error>(msg: &str, err: T) {
-    error!("{msg}: {err}");
-    let result = framework_err.ctx().unwrap().send(error.error_to_embed()).await;
-    if let Err(fail) = result {
-        error!("Failed to send error message to guild: {}", fail)
-    }
 
+async fn log_error<T: std::error::Error>(ctx: PoiseContext<'_>, msg: &str, err: T) {
+    // Log message in console
+    log::error!("{msg}: {err}");
+
+    // Log message in channel
+    if let Some(ctx) = ctx {
+        let response = ctx.send(create_embed(msg)).await;
+
+        // Log failure in channel
+        if let Err(fail) = response {
+            log::error!("Failed to send error message to guild: {}", fail)
+        }
+    }
+}
+
+fn create_embed(msg: &str) -> CreateReply {
+    let creator = CreateEmbed::new()
+        .description(msg)
+        .color(Color::RED);
+
+    CreateReply::default().embed(creator)
 }

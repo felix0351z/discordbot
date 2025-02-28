@@ -64,15 +64,3 @@ impl EmbedFormat for VecDeque<TrackInQueue> {
         return CreateReply::default().embed(creator)
     }
 }
-
-pub trait ErrorEmbedFormat {
-    fn error_to_embed(&self) -> CreateReply;
-}
-impl<T: ?Sized + std::error::Error + ToString> ErrorEmbedFormat for T {
-    fn error_to_embed(&self) -> CreateReply {
-        let creator = CreateEmbed::new()
-            .description(self.to_string())
-            .color(Color::RED);
-        return CreateReply::default().embed(creator)
-    }
-}
