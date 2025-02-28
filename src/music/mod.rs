@@ -17,12 +17,11 @@ pub mod leave; pub mod lavalink;
 // Formatting extensions
 pub mod format;
 
-
 #[hook]
-pub async fn ready_event(client: LavalinkClient, session_id: String, event: &lavalink_rs::model::events::Ready) {
-    // if the bot started, remove all existent players and give status info
+pub async fn ready_event(client: LavalinkClient, session_id: String, _event: &lavalink_rs::model::events::Ready) {
+    // Remove all existent players and give status info
     client.delete_all_player_contexts().await.unwrap();
-    info!("{:?} -> {:?}", session_id, event);
+    info!("Lavalink client ready. Session ID is {session_id}");
 }
 
 /// General music error, which will be thrown/send if the interaction between the user and the bot is not correct

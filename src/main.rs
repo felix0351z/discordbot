@@ -1,14 +1,17 @@
 use std::default::Default;
+use std::env;
 use std::sync::Arc;
 
 use lavalink_rs::client::LavalinkClient;
 use lavalink_rs::model::events::Events;
 use lavalink_rs::node::NodeBuilder;
 use lavalink_rs::prelude::NodeDistributionStrategy;
+use log::info;
 use poise::{Framework, FrameworkError, FrameworkOptions, PrefixFrameworkOptions};
 use serenity::all::GatewayIntents;
 use serenity::Client;
 use songbird::SerenityInit;
+use crate::music::info::info;
 
 // General command
 mod commands;
@@ -44,7 +47,7 @@ async fn main() {
     let settings = config::new();
     info!("Loaded configuration.");
 
-    //Initialise the poise framework for command management
+    //Initialise poise framework for command management
     let options = FrameworkOptions {
         commands: vec![
             commands::hello(), commands::ping(), commands::help(),
@@ -56,7 +59,8 @@ async fn main() {
             prefix: Some(settings.chat_prefix),
             mention_as_prefix: true,
             ..Default::default()
-        }, //Global error handler for all errors which occur
+        },
+        // error handler for all errors which occur
         on_error: |framework_err: FrameworkError<'_, Data, Error>| {
             Box::pin(error::error_handler(framework_err))
         },
@@ -69,9 +73,8 @@ async fn main() {
     let poise_framework = Framework::builder()
         .setup(move |ctx, _ready, framework| {
             Box::pin(async move {
-                // Register the commands of the bot at the discord server
+                // Register  commands of the bot at the discord server
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-
                 // Load lavalink
                 let events = Events {
                     ready: Some(music::ready_event),
@@ -94,23 +97,19 @@ async fn main() {
         })
         .options(options)
         .build();
-
-
-
+    info!("Poise framework initialized.");
 
     // Create the serenity client and start the server
     let mut client = Client::builder(settings.discord_token, GatewayIntents::all())
         .register_songbird()
         .framework(poise_framework)
         .await
-        .unwrap_or_else(|err| {
-            panic!("Error occurred on client creation: {}", err)
-        });
+        .expect("Error creating client");
+    info!("Client created.");
 
     // Start the client
-    if let Err(error) = client.start().await {
-        println!("Error while client runtime: {error:?}")
-    }
+    client.start().await
+        .expect("Error client runtime");
 }
 
 
