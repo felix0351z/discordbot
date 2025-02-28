@@ -4,6 +4,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      - DISCORD_TOKEN=
+      - CHAT_PREFIX=!
+      - LAVALINK_HOST=discord-lavalink
+      - LAVALINK_PORT=2333
+      - LAVALINK_PASSWORD=youshallnotpass
     networks:
       - dc-internal
       - dc-external
