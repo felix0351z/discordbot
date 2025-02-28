@@ -5,7 +5,8 @@ services:
       context: .
       dockerfile: Dockerfile
     networks:
-      - lavalink-internal
+      - dc-internal
+      - dc-external
     depends_on:
       - lavalink
   lavalink:
@@ -19,9 +20,12 @@ services:
     volumes:
       - ./application.yml:/opt/Lavalink/application.yml
       # persist plugins between restarts, make sure to set the correct permissions (user: 322, group: 322)
-      - ./plugins/:/opt/Lavalink/plugins/
+      # Without error: mkdir plugins | chmod 777 plugins
+      - ./plugins:/opt/Lavalink/plugins/
     networks:
-      - lavalink-internal
-
+      - dc-internal
 networks:
-  lavalink-internal:
+  dc-internal:
+  dc-external:
+    driver: bridge
+    

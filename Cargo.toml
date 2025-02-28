@@ -22,5 +22,6 @@ lazy_static = "1.5.0"
 dashmap = "6.0.1"
 serde = { version = "1.0.205", features = ["derive"] }
 toml = "0.8.19"
+openssl = { version = "0.10", features = ["vendored"] }
 
 
