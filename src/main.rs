@@ -36,13 +36,13 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 
 #[tokio::main]
 async fn main() {
-    // Start the logger and load  settings
+    // Start logging
+    if env::var("RUST_LOG").is_err() { env::set_var("RUST_LOG", "DiscordBot=info") }
     env_logger::init();
-    let settings = config::load_settings();
 
-    // Provide intents, which are needed for this bot
-    let intents =
-        GatewayIntents::all();
+    // Load configuration
+    let settings = config::new();
+    info!("Loaded configuration.");
 
     //Initialise the poise framework for command management
     let options = FrameworkOptions {
@@ -53,7 +53,7 @@ async fn main() {
             music::leave::leave(), music::lavalink::lavalink(),
         ],
         prefix_options: PrefixFrameworkOptions {
-            prefix: Some(settings.application.prefix),
+            prefix: Some(settings.chat_prefix),
             mention_as_prefix: true,
             ..Default::default()
         }, //Global error handler for all errors which occur
@@ -78,9 +78,9 @@ async fn main() {
                     ..Default::default()
                 };
                 let node = NodeBuilder {
-                        hostname: format!("{}:{}", settings.lavalink.hostname, settings.lavalink.port).to_string(),
-                        password: settings.lavalink.password,
-                        is_ssl: settings.lavalink.is_ssl,
+                        hostname: format!("{}:{}", settings.lavalink_host, settings.lavalink_port).to_string(),
+                        password: settings.lavalink_password,
+                        is_ssl: settings.lavalink_ssl,
                         events: Events::default(),
                         user_id: ctx.cache.current_user().id.into(),
                         session_id: None
@@ -99,7 +99,7 @@ async fn main() {
 
 
     // Create the serenity client and start the server
-    let mut client = Client::builder(settings.application.discord_token, intents)
+    let mut client = Client::builder(settings.discord_token, GatewayIntents::all())
         .register_songbird()
         .framework(poise_framework)
         .await

@@ -1,70 +1,48 @@
-use std::fs;
-use std::path::Path;
+use std::string::String;
+use std::env;
+use std::fmt::Display;
 use log::info;
-use serde::{Deserialize, Serialize};
 
-const CONFIG_NAME: &str = "settings.toml";
+// Standard values
+const CHAT_PREFIX: &str = "!";
+const LAVALINK_HOST: &str = "127.0.0.1";
+const LAVALINK_PORT: u32 = 2333;
+const LAVALINK_PASSWORD: &str = "youshallnotpass";
+const LAVALINK_SSL: bool = false;
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct Settings {
-    pub application: ApplicationSettings,
-    pub lavalink: LavalinkNodeSettings
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct ApplicationSettings {
+pub struct Config {
     pub discord_token: String,
-    pub prefix: String,
+    pub chat_prefix: String,
+    pub lavalink_host: String,
+    pub lavalink_port: u32,
+    pub lavalink_password: String,
+    pub lavalink_ssl: bool
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct LavalinkNodeSettings {
-    pub hostname: String,
-    pub port: i32,
-    pub password: String,
-    pub is_ssl: bool,
-}
-
-impl Settings {
-
-    fn new() -> Self {
-        Self {
-            application: ApplicationSettings {
-                discord_token: "".to_string(),
-                prefix: "!".to_string(),
-            },
-            lavalink: LavalinkNodeSettings {
-                hostname: "127.0.0.1".to_string(),
-                port: 2333,
-                password: "youshallnotpass".to_string(),
-                is_ssl: false
-            }
-        }
-    }
-
-
-}
-
-
-pub fn load_settings() -> Settings {
-    let is_present = Path::new(CONFIG_NAME).exists();
-    if !is_present {
-        // Create standard configuration and write it
-        let standard = toml::to_string(&Settings::new()).unwrap();
-        fs::write(CONFIG_NAME, standard).unwrap_or_else(|err| {
-            panic!("Failed to create a new config file: {err}", )
-        });
-
-        panic!("Successfully created configuration file {}. Please fill out the configuration and restart the application.", CONFIG_NAME)
-    }
-
-    let file = fs::read_to_string(CONFIG_NAME).unwrap_or_else(|err| {
-        panic!("Failed to read config file {}: {}", CONFIG_NAME, err)
+pub fn new() -> Config {
+    let Ok(discord_token) = env::var("DISCORD_TOKEN") else {
+        panic!("DISCORD_TOKEN environment variable is not set!");
+    };
+    let port = read_var("LAVALINK_PORT", LAVALINK_PORT).parse::<u32>().unwrap_or_else(|_| {
+        panic!("LAVALINK_PORT environment variable is not a valid port number!");
     });
-    let config: Settings = toml::from_str(file.as_str()).unwrap_or_else(|_| {
-        panic!("Failed to parse the config file. You may have an syntax error in your configuration!")
+    let ssl = read_var("LAVALINK_SSL", LAVALINK_SSL).parse::<bool>().unwrap_or_else(|_| {
+       panic!("LAVALINK_SSL environment variable is not a valid boolean value! Please use true or false to inform if lavalink uses ssl.");
     });
 
-    info!("Loaded configuration file {} successfully", CONFIG_NAME);
-    return config;
+    Config {
+        discord_token,
+        chat_prefix: read_var("CHAT_PREFIX", CHAT_PREFIX),
+        lavalink_host: read_var("LAVALINK_HOST", LAVALINK_HOST),
+        lavalink_port: port,
+        lavalink_password: read_var("LAVALINK_PASSWORD", LAVALINK_PASSWORD),
+        lavalink_ssl: ssl,
+    }
+}
+
+fn read_var<T: Display>(key: &str, default: T) -> String {
+    env::var(key).unwrap_or_else(|_| {
+        info!("{key} environment variable is not set. The standard {key} {default} will be used.");
+        default.to_string()
+    })
 }
