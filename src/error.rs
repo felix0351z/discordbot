@@ -1,8 +1,8 @@
-
 use poise::{Context, CreateReply, FrameworkError};
 use crate::{Data, Error};
 use lavalink_rs::error::LavalinkError;
 use serenity::all::{Color, CreateEmbed};
+use crate::music::MusicCommandError;
 
 type PoiseContext<'a> = Option<Context<'a, Data, Error>>;
 
@@ -20,7 +20,15 @@ pub async fn error_handler(framework_err: FrameworkError<'_, Data, Error>) {
                     }
                     &_ => { log::error!("Lavalink: {}", error); }
                 }
-            } else {
+            }
+            else if let Some(music_error) = error.downcast_ref::<MusicCommandError>() {
+                // Send message to channel if a music error occurs
+                // No log in console because it is no real error
+                if let Some(ctx) = ctx {
+                    let _ = ctx.send(create_embed(music_error.to_string())).await;
+                }
+            }
+            else {
                 log::error!("Command execution: {}", error);
             }
         }
@@ -44,7 +52,7 @@ async fn log_error<T: std::error::Error>(ctx: PoiseContext<'_>, msg: &str, err: 
     }
 }
 
-fn create_embed(msg: &str) -> CreateReply {
+fn create_embed(msg: impl Into<String>) -> CreateReply {
     let creator = CreateEmbed::new()
         .description(msg)
         .color(Color::RED);

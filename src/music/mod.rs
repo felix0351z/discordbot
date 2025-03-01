@@ -4,7 +4,7 @@ use lavalink_rs::client::LavalinkClient;
 use lavalink_rs::hook;
 use lavalink_rs::player_context::PlayerContext;
 use log::{error, info};
-use serenity::all::GuildId;
+use serenity::all::{Cache, GuildId};
 use songbird::Songbird;
 use thiserror::Error;
 use tokio::task::JoinHandle;
@@ -72,6 +72,7 @@ impl PlayerStoppedExtension for PlayerContext {
 /// Asynchronously checks if a player is not playing anymore. If the case is true, the player will be closed due to inactivity
 pub fn inactivity_handler(
     delay: Duration,
+    cache: Arc<Cache>,
     lavalink: Arc<LavalinkClient>,
     songbird: Arc<Songbird>
 ) -> JoinHandle<()> {
@@ -83,30 +84,28 @@ pub fn inactivity_handler(
                 .filter_map(|i|i.0.load().clone().map(|x|GuildId::new(x.guild_id.0)))
                 .collect::<Vec<_>>();
 
-
             for guild_id in guild_ids.iter() {
+                let guild_name = guild_id.name(&cache)
+                    .unwrap_or(guild_id.get().to_string());
+
                 // If the player is active skip the current player
                 if let Some(player) = lavalink.get_player_context(*guild_id) {
                     if player.get_player().await.is_ok_and(|it|it.track.is_some()) {
-                        info!("Skipped player close for player at guild {} because he is playing", guild_id.get());
                         continue;
                     }
                 }
 
+                // Delete lavalink player
                 if lavalink.delete_player(*guild_id).await.is_ok() {
+                    // If succeeded leave voice channel
                     if songbird.get(*guild_id).is_some() {
-                        let leave_request = songbird.remove(*guild_id).await;
-                        match leave_request {
-                            Ok(_) => {
-                                info!("Leaved voice channel at guild {} because of inactivity", guild_id.get());
-                            }
-                            Err(err) => {
-                                error!("Failed to leave voice channel at guild {}: {}", guild_id.get(), err)
-                            }
+                        match songbird.remove(*guild_id).await {
+                            Ok(_) => { info!("Leaved voice channel at guild {guild_name} because of inactivity"); }
+                            Err(err) => { error!("Failed to leave voice channel at guild {guild_name}: {err}") }
                         }
                     }
                 } else {
-                    error!("Failed to leave voice channel at guild {}: Can't get the player context", guild_id.get())
+                    error!("Can't delete player context at guild {guild_name}")
                 }
             }
         }

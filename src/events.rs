@@ -16,7 +16,11 @@ pub async fn event_handler(
 
             let songbird = songbird::get(ctx).await.unwrap();
             let lavalink = framework.user_data.lavalink.clone();
-            let _task = inactivity_handler(Duration::from_secs(LEAVE_TIME), lavalink, songbird);
+
+            // Create an async task to remove unused music players
+            let _task = inactivity_handler(
+                Duration::from_secs(LEAVE_TIME),
+                ctx.cache.clone(), lavalink, songbird);
         },
         _ => {}
     }

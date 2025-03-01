@@ -28,7 +28,7 @@ impl EmbedFormat for TrackData {
         }
 
 
-        return CreateReply::default().embed(creator)
+        CreateReply::default().embed(creator)
     }
 }
 
@@ -38,7 +38,7 @@ impl EmbedFormat for PlaylistInfo {
             .title(format!("{}:\nPlaylist - {}", prefix,  self.name))
             .color(Color::RED);
 
-        return CreateReply::default().embed(creator)
+        CreateReply::default().embed(creator)
     }
 }
 
@@ -61,6 +61,6 @@ impl EmbedFormat for VecDeque<TrackInQueue> {
         creator = creator.description(text);
 
 
-        return CreateReply::default().embed(creator)
+        CreateReply::default().embed(creator)
     }
 }
