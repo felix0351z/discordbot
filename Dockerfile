@@ -15,5 +15,4 @@ RUN cargo build --target x86_64-unknown-linux-musl --release
 FROM alpine
 
 COPY --from=builder /discordbot/target/x86_64-unknown-linux-musl/release/DiscordBot ./
-COPY --from=builder /discordbot/settings.toml ./
 ENTRYPOINT ["/DiscordBot"]
