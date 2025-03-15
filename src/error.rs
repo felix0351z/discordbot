@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use poise::{Context, CreateReply, FrameworkError};
 use crate::{Data, Error};
 use lavalink_rs::error::LavalinkError;
@@ -53,7 +54,7 @@ async fn handle_music_error(ctx: PoiseContext<'_>, error: &MusicCommandError) {
 
 
 /// Log the error in the console and notify the user in the guild channel, if a request or was made.
-async fn log_error<T: std::error::Error>(ctx: PoiseContext<'_>, msg: impl Into<String>, err: T) {
+async fn log_error<E: std::error::Error, M: Into<String> + Display>(ctx: PoiseContext<'_>, msg: M, err: E) {
     // Log message in console
     log::error!("{msg}: {err}");
 
