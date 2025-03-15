@@ -36,7 +36,7 @@ async fn handle_lavalink_error(ctx: PoiseContext<'_>, error: &LavalinkError) {
         }
         LavalinkError::TrackError(..) => {
             // Notify that lavalink has a problem with the current track
-            log_error(ctx, "Lavalink:", error).await;
+            log_error(ctx, format!("Lavalink: {error}"), error).await;
         }
         // If the error is not known yet, log it to the console
         &_ => { log::error!("Lavalink: {}", error); }
@@ -53,7 +53,7 @@ async fn handle_music_error(ctx: PoiseContext<'_>, error: &MusicCommandError) {
 
 
 /// Log the error in the console and notify the user in the guild channel, if a request or was made.
-async fn log_error<T: std::error::Error>(ctx: PoiseContext<'_>, msg: &str, err: T) {
+async fn log_error<T: std::error::Error>(ctx: PoiseContext<'_>, msg: impl Into<String>, err: T) {
     // Log message in console
     log::error!("{msg}: {err}");
 
